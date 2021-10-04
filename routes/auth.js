@@ -7,7 +7,7 @@ const router = new Router();
 
 
 /** POST /register: registers, logs in, and returns token.
- *
+ * 
  * {username, password, first_name, last_name, phone} => {token}.
  */
 
