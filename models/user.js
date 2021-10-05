@@ -17,6 +17,9 @@ class User {
 
   static async register({ username, password, first_name, last_name, phone }) {
 
+    if (User.usernameExists(username)) {
+      return ('Username already exists.')
+    }
     const hashedPassword = await bcrypt.hash(password, BCRYPT_WORK_FACTOR);
     const result = await db.query(
       `INSERT INTO users (username, 
@@ -51,7 +54,6 @@ class User {
            WHERE username = $1`,
       [username]);
     const user = result.rows[0];
-
     if (user) {
       if (await bcrypt.compare(password, user.password) === true) {
         return true;
@@ -104,7 +106,7 @@ class User {
        FROM users WHERE username=$1`, [username]);
     const user = result.rows[0];
 
-    if (!user) throw new NotFoundError(`No such user ${username}`);
+    if (!user) throw new NotFoundError(`No such user: ${username}`);
 
     return user;
   }
@@ -120,12 +122,19 @@ class User {
   // put this in a dictionary with key of username
   // 
   static async messagesFrom(username) {
+    if (!User.usernameExists(username)) {
+      throw new NotFoundError(`No such user: ${username}`);
+    }
     const messageResult = await db.query(
       `SELECT m.id, m.to_username, m.body, m.sent_at, m.read_at
       FROM messages AS m
         JOIN users AS u ON m.from_username = u.username
       WHERE u.username = $1`,
       [username]);
+
+    if (messageResult.rows === 'Undefined') {
+      throw new NotFoundError(`No messages found from user: ${username}.`)
+    }
 
     const userResult = await db.query(
       `SELECT distinct m.to_username, u.first_name, u.last_name, u.phone 
@@ -159,6 +168,9 @@ class User {
    */
 
   static async messagesTo(username) {
+    if (!User.usernameExists(username)) {
+      throw new NotFoundError(`No such user: ${username}`);
+    }
     const messageResult = await db.query(
       `SELECT m.id, m.from_username, m.body, m.sent_at, m.read_at
       FROM messages AS m
@@ -167,6 +179,9 @@ class User {
       [username]);
     console.log(messageResult);
 
+    if (messageResult.rows === 'Undefined') {
+      throw new NotFoundError(`No messages found to user: ${username}.`)
+    }
     const userResult = await db.query(
       `SELECT distinct m.from_username, u.first_name, u.last_name, u.phone 
       FROM users u
