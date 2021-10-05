@@ -25,7 +25,7 @@ app.use(authenticateJWT);
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
 const messageRoutes = require("./routes/messages");
-
+console.log('above auth route');
 app.use("/auth", authRoutes);
 app.use("/users", userRoutes);
 app.use("/messages", messageRoutes);

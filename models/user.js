@@ -2,7 +2,7 @@
 
 const db = require("../db");
 const bcrypt = require('bcrypt');
-const { NotFoundError } = require("../expressError");
+const { NotFoundError, UnauthorizedError } = require("../expressError");
 
 const { BCRYPT_WORK_FACTOR } = require("../config")
 
@@ -16,10 +16,10 @@ class User {
    */
 
   static async register({ username, password, first_name, last_name, phone }) {
-
-    if (User.usernameExists(username)) {
+    if (await User.usernameExists(username)) {
       return ('Username already exists.')
     }
+    
     const hashedPassword = await bcrypt.hash(password, BCRYPT_WORK_FACTOR);
     const result = await db.query(
       `INSERT INTO users (username, 
@@ -47,7 +47,7 @@ class User {
   }
   /** Authenticate: is username/password valid? Returns boolean. */
 
-  static async authenticate(username, password) {
+  static async authenticate({ username, password }) {
     const result = await db.query(
       `SELECT password
            FROM users
@@ -55,11 +55,11 @@ class User {
       [username]);
     const user = result.rows[0];
     if (user) {
-      if (await bcrypt.compare(password, user.password) === true) {
+      if (await (bcrypt.compare(password, user.password)) === true) {
         return true;
       }
+      throw new UnauthorizedError('Invalid user/password');
     }
-    return false;
   }
 
   /** Update last_login_at for user */
@@ -105,8 +105,8 @@ class User {
               last_login_at 
        FROM users WHERE username=$1`, [username]);
     const user = result.rows[0];
-
-    if (!user) throw new NotFoundError(`No such user: ${username}`);
+    // console.log('user: ', user);
+    //if (!user) throw new NotFoundError(`No such user: ${username}`);
 
     return user;
   }
@@ -122,9 +122,9 @@ class User {
   // put this in a dictionary with key of username
   // 
   static async messagesFrom(username) {
-    if (!User.usernameExists(username)) {
-      throw new NotFoundError(`No such user: ${username}`);
-    }
+    // if (!User.usernameExists(username)) {
+    //   throw new NotFoundError(`No such user: ${username}`);
+    // }
     const messageResult = await db.query(
       `SELECT m.id, m.to_username, m.body, m.sent_at, m.read_at
       FROM messages AS m
@@ -132,9 +132,9 @@ class User {
       WHERE u.username = $1`,
       [username]);
 
-    if (messageResult.rows === 'Undefined') {
-      throw new NotFoundError(`No messages found from user: ${username}.`)
-    }
+    // if (messageResult.rows === 'Undefined') {
+    //   throw new NotFoundError(`No messages found from user: ${username}.`)
+    // }
 
     const userResult = await db.query(
       `SELECT distinct m.to_username, u.first_name, u.last_name, u.phone 
@@ -168,27 +168,27 @@ class User {
    */
 
   static async messagesTo(username) {
-    if (!User.usernameExists(username)) {
-      throw new NotFoundError(`No such user: ${username}`);
-    }
+    // if (!User.usernameExists(username)) {
+    //   throw new NotFoundError(`No such user: ${username}`);
+    // }
     const messageResult = await db.query(
       `SELECT m.id, m.from_username, m.body, m.sent_at, m.read_at
       FROM messages AS m
         JOIN users AS u ON m.to_username = u.username
       WHERE u.username = $1`,
       [username]);
-    console.log(messageResult);
+    // console.log(messageResult);
 
-    if (messageResult.rows === 'Undefined') {
-      throw new NotFoundError(`No messages found to user: ${username}.`)
-    }
+    // if (messageResult.rows === 'Undefined') {
+    //   throw new NotFoundError(`No messages found to user: ${username}.`)
+    // }
     const userResult = await db.query(
       `SELECT distinct m.from_username, u.first_name, u.last_name, u.phone 
       FROM users u
       JOIN messages m ON u.username = m.from_username 
       WHERE m.to_username = $1`,
       [username]);
-    console.log(userResult);
+    // console.log(userResult);
 
     let users = {};
     for (let user of userResult.rows) {
@@ -203,7 +203,7 @@ class User {
       message["from_user"] = users[message.from_username];
       delete message["from_username"];
     }
-    console.log(messageResult.rows);
+    // console.log(messageResult.rows);
     return messageResult.rows;
   }
 }
