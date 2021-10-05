@@ -11,4 +11,8 @@ const router = new Router();
  * {username, password, first_name, last_name, phone} => {token}.
  */
 
+//  if (User.usernameExists(username)) {
+//     return ('Username already exists.')
+//   }
+
 module.exports = router;
